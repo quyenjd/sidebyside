@@ -14,3 +14,31 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+.divider {
+  position: relative;
+  overflow: visible;
+  cursor: col-resize;
+}
+
+.divider:hover:before {
+  content: " ";
+  position: absolute;
+  top: 0;
+  left: -2px;
+  right: -3px;
+  bottom: 0;
+  background: #89cff0;
+  opacity: 0.7;
+  z-index: 10;
+}
+
+.divider.active:after {
+  content: " ";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+}

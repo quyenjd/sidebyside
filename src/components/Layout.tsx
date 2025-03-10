@@ -2,8 +2,9 @@
 
 import ThemeProvider from "@components/ThemeProvider";
 import { Box, CircularProgress, Divider, Stack, TextField, Typography } from "@mui/material";
+import clamp from "lodash/clamp";
 import prependHttp from "prepend-http";
-import { HTMLProps, useEffect, useState } from "react";
+import { HTMLProps, useCallback, useEffect, useRef, useState } from "react";
 
 interface LayoutProps {
   mode: "create" | "view";
@@ -55,12 +56,56 @@ const Layout = ({
   rightUrl,
   onRightUrlChange,
 }: LayoutProps) => {
+  const [dividerRef, setDividerRef] = useState<HTMLDivElement | null>(null);
+  const [flexLeft, setFlexLeft] = useState(1); // used in styling
+  const flexLeftRef = useRef(1); // used in resizing math
+
+  useEffect(() => {
+    flexLeftRef.current = flexLeft;
+  }, [flexLeft]);
+
+  const handleStartResize = useCallback((event: PointerEvent) => {
+    if (!dividerRef?.contains(event.target as Node)) {
+      return;
+    }
+
+    dividerRef?.classList.add("active");
+
+    const startX = event.clientX;
+    const totalWidth = startX * (flexLeftRef.current + 1) / flexLeftRef.current;
+
+    const getNewFlexLeft = (event: PointerEvent) => {
+      const newStartX = event.clientX;
+      const newFlexLeft = newStartX / (totalWidth - newStartX);
+      return clamp(newFlexLeft, 0.5, 2); // min 1/3, max 2/3 of total width
+    };
+
+    const handleResize = (event: PointerEvent) => {
+      setFlexLeft(getNewFlexLeft(event));
+    };
+
+    const handleEndResize = () => {
+      dividerRef?.classList.remove("active");
+      document.removeEventListener("pointermove", handleResize);
+      document.removeEventListener("pointerup", handleEndResize);
+    };
+
+    document.addEventListener("pointermove", handleResize);
+    document.addEventListener("pointerup", handleEndResize);
+  }, [dividerRef]);
+
+  useEffect(() => {
+    document.addEventListener("pointerdown", handleStartResize);
+    return () => document.removeEventListener("pointerdown", handleStartResize);
+  }, [handleStartResize]);
+
   return (
     <ThemeProvider>
       <Stack direction="row" className="w-full h-full">
         <Stack
-          className={`flex-1 h-full ${!leftUrl && mode === "view" ? "bg-gray-200" : ""}`}
+          className={`h-full ${!leftUrl && mode === "view" ? "bg-gray-200" : ""}`}
           paddingTop={mode === "create" ? 1 : 0}
+          style={{ flex: flexLeft }}
         >
           {mode === "view" && leftUrl && (
             <IframeWithLoader src={leftUrl} height="100%" width="100%" />
@@ -89,7 +134,7 @@ const Layout = ({
           )}
         </Stack>
 
-        <Divider orientation="vertical" flexItem />
+        <Divider ref={setDividerRef} className="divider" orientation="vertical" flexItem />
 
         <Stack
           className={`flex-1 h-full ${!rightUrl && mode === "view" ? "bg-gray-200" : ""}`}
